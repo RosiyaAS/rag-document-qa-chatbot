@@ -178,9 +178,3 @@ for msg in st.session_state.messages:
 
 
 
-with st.expander("🔧 Debug (temporary)"):
-    try:
-        from rag import key_info
-        st.write(key_info())
-    except Exception as e:
-        st.write(f"Debug error: {e}")
