@@ -15,15 +15,7 @@ _embeddings = None
 _llms = {}
 
 
-def get_embeddings():
-    global _embeddings
-    if _embeddings is None:
-        _embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
-    return _embeddings
-
-
+# ---------- API key ----------
 def get_api_key():
     key = os.getenv("GOOGLE_API_KEY", "")
     try:
@@ -42,18 +34,31 @@ def key_info():
     return f"Key starts with: {key[:4]} | length: {len(key)}"
 
 
+# ---------- models ----------
+def get_embeddings():
+    global _embeddings
+    if _embeddings is None:
+        _embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
+    return _embeddings
+
+
 def get_llm(model, fast=True):
-    key = (model, fast)
-    if key not in _llms:
+    cache_key = (model, fast)
+    if cache_key not in _llms:
         if fast:
-            _llms[key] = ChatGoogleGenerativeAI(
+            _llms[cache_key] = ChatGoogleGenerativeAI(
                 model=model, api_key=get_api_key(), thinking_level="low"
             )
         else:
-            _llms[key] = ChatGoogleGenerativeAI(model=model, api_key=get_api_key())
-    return _llms[key]
+            _llms[cache_key] = ChatGoogleGenerativeAI(
+                model=model, api_key=get_api_key()
+            )
+    return _llms[cache_key]
 
 
+# ---------- document processing ----------
 def build_vectorstore(pdf_path, file_name=None):
     pages = PyPDFLoader(pdf_path).load()
     splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=150)
@@ -65,6 +70,14 @@ def build_vectorstore(pdf_path, file_name=None):
     return FAISS.from_documents(chunks, get_embeddings())
 
 
+def get_all_chunks(vs):
+    return [
+        vs.docstore.search(vs.index_to_docstore_id[i])
+        for i in range(vs.index.ntotal)
+    ]
+
+
+# ---------- prompts ----------
 PROMPT = """You are a helpful assistant that answers questions about a PDF document.
 You can only read the TEXT of the PDF. You cannot see colors, images, boxes, diagrams or layout.
 If the question is about those visual things, say you can only read the text of the document.
@@ -104,15 +117,12 @@ BROAD_WORDS = [
 ]
 
 
-def get_all_chunks(vs):
-    return [vs.docstore.search(vs.index_to_docstore_id[i]) for i in range(vs.index.ntotal)]
-
-
 def is_broad(question):
     q = question.lower()
     return any(w in q for w in BROAD_WORDS)
 
 
+# ---------- asking Gemini ----------
 def ask_llm(prompt):
     models = [MODEL_NAME] + [m for m in FALLBACK_MODELS if m != MODEL_NAME]
     last_error = None
