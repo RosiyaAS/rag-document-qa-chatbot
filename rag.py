@@ -123,6 +123,22 @@ def is_broad(question):
 
 
 # ---------- asking Gemini ----------
+def get_text(response):
+    t = response.text
+    if callable(t):
+        t = t()
+    if isinstance(t, str) and t:
+        return t
+    content = response.content
+    if isinstance(content, str):
+        return content
+    parts = []
+    for p in content:
+        if isinstance(p, str):
+            parts.append(p)
+        elif isinstance(p, dict) and p.get("type") == "text":
+            parts.append(p.get("text", ""))
+    return "".join(parts)
 def ask_llm(prompt):
     models = [MODEL_NAME] + [m for m in FALLBACK_MODELS if m != MODEL_NAME]
     last_error = None
@@ -131,7 +147,7 @@ def ask_llm(prompt):
         for attempt in range(3):
             try:
                 start = time.time()
-                text = get_llm(model, fast).invoke(prompt).text
+                text = get_text(get_llm(model, fast).invoke(prompt))
                 print(f"[{model}] answered in {time.time() - start:.1f}s")
                 return text
             except Exception as e:
