@@ -175,3 +175,9 @@ for msg in st.session_state.messages:
                         f'<div class="source-page">PAGE {s["page"]}</div>{text}...</div>',
                         unsafe_allow_html=True,
                     )
+
+
+from rag import key_info
+
+with st.expander("🔧 Debug (temporary)"):
+    st.write(key_info())

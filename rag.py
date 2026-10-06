@@ -24,13 +24,33 @@ def get_embeddings():
     return _embeddings
 
 
+def get_api_key():
+    key = os.getenv("GOOGLE_API_KEY", "")
+    try:
+        import streamlit as st
+        if "GOOGLE_API_KEY" in st.secrets:
+            key = st.secrets["GOOGLE_API_KEY"]
+    except Exception:
+        pass
+    return str(key).strip().strip('"').strip("'").strip()
+
+
+def key_info():
+    key = get_api_key()
+    if not key:
+        return "No key found (length 0)"
+    return f"Key starts with: {key[:4]} | length: {len(key)}"
+
+
 def get_llm(model, fast=True):
     key = (model, fast)
     if key not in _llms:
         if fast:
-            _llms[key] = ChatGoogleGenerativeAI(model=model, thinking_level="low")
+            _llms[key] = ChatGoogleGenerativeAI(
+                model=model, api_key=get_api_key(), thinking_level="low"
+            )
         else:
-            _llms[key] = ChatGoogleGenerativeAI(model=model)
+            _llms[key] = ChatGoogleGenerativeAI(model=model, api_key=get_api_key())
     return _llms[key]
 
 
